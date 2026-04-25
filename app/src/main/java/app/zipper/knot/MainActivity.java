@@ -1,0 +1,129 @@
+package app.zipper.knot;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class MainActivity extends Activity {
+
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    requestWindowFeature(Window.FEATURE_NO_TITLE);
+    if (getActionBar() != null)
+      getActionBar().hide();
+
+    ScrollView mainScroll = new ScrollView(this);
+    mainScroll.setBackgroundColor(Color.parseColor("#F5F6F8"));
+
+    LinearLayout parentLayout = new LinearLayout(this);
+    parentLayout.setOrientation(LinearLayout.VERTICAL);
+    parentLayout.setGravity(Gravity.CENTER_VERTICAL |
+                            Gravity.CENTER_HORIZONTAL);
+    int margin = toPixels(24);
+    parentLayout.setPadding(margin, toPixels(48), margin, margin);
+
+    try {
+      ImageView iconView = new ImageView(this);
+      int resId = getResources().getIdentifier("ic_launcher", "mipmap",
+                                               getPackageName());
+      if (resId == 0)
+        resId = getResources().getIdentifier("ic_knot", "drawable",
+                                             getPackageName());
+      if (resId != 0) {
+        iconView.setImageResource(resId);
+        LinearLayout.LayoutParams iconLp =
+            new LinearLayout.LayoutParams(toPixels(80), toPixels(80));
+        iconLp.bottomMargin = toPixels(16);
+        iconView.setLayoutParams(iconLp);
+        parentLayout.addView(iconView);
+      }
+    } catch (Throwable ignored) {
+    }
+
+    TextView titleLabel = new TextView(this);
+    titleLabel.setText("Knot for LINE");
+    titleLabel.setTextSize(26);
+    titleLabel.setTextColor(Color.parseColor("#222222"));
+    titleLabel.setTypeface(null, Typeface.BOLD);
+    titleLabel.setGravity(Gravity.CENTER);
+    titleLabel.setPadding(0, 0, 0, toPixels(32));
+    parentLayout.addView(titleLabel);
+
+    LinearLayout cardLayout = new LinearLayout(this);
+    cardLayout.setOrientation(LinearLayout.VERTICAL);
+    cardLayout.setPadding(toPixels(24), toPixels(32), toPixels(24),
+                          toPixels(32));
+
+    GradientDrawable cardBg = new GradientDrawable();
+    cardBg.setColor(Color.WHITE);
+    cardBg.setCornerRadius(toPixels(20));
+    cardBg.setStroke(toPixels(1), Color.parseColor("#EAEAEA"));
+    cardLayout.setBackground(cardBg);
+
+    TextView descLabel = new TextView(this);
+    descLabel.setText("モジュールを有効化し、LINEアプリを再起動してください。" +
+                      "\n\n各種機能の設定やデータ保存先の指定は、LINEのホーム" +
+                      "画面右上にある「設定（歯車）」アイコンを長押しするか、" +
+                      "LINE設定内の追加項目から行うことができます。");
+    descLabel.setTextSize(15);
+    descLabel.setTextColor(Color.parseColor("#555555"));
+    descLabel.setLineSpacing(0, 1.4f);
+    descLabel.setGravity(Gravity.CENTER);
+    cardLayout.addView(descLabel);
+
+    parentLayout.addView(cardLayout);
+
+    Button openLineBtn = new Button(this);
+    openLineBtn.setText("LINEを開く");
+    openLineBtn.setTextColor(Color.WHITE);
+    openLineBtn.setTextSize(16);
+    openLineBtn.setTypeface(null, Typeface.BOLD);
+    openLineBtn.setAllCaps(false);
+
+    GradientDrawable btnBg = new GradientDrawable();
+    btnBg.setColor(Color.parseColor("#06C755"));
+    btnBg.setCornerRadius(toPixels(30));
+    openLineBtn.setBackground(btnBg);
+
+    LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, toPixels(54));
+    btnLp.topMargin = toPixels(40);
+    openLineBtn.setLayoutParams(btnLp);
+
+    openLineBtn.setOnClickListener(v -> {
+      Intent launchIntent = getPackageManager().getLaunchIntentForPackage(
+          "jp.naver.line.android");
+      if (launchIntent != null) {
+        startActivity(launchIntent);
+      } else {
+        android.widget.Toast
+            .makeText(this, "LINEがインストールされていません",
+                      android.widget.Toast.LENGTH_SHORT)
+            .show();
+      }
+    });
+
+    parentLayout.addView(openLineBtn);
+
+    mainScroll.addView(parentLayout);
+    setContentView(mainScroll);
+  }
+
+  private int toPixels(int dp) {
+    return (int)(dp * getResources().getDisplayMetrics().density);
+  }
+}
