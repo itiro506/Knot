@@ -52,6 +52,8 @@ public class ReadHistoryViewer {
 
       boolean found = false;
       if (list != null) {
+        java.util.LinkedHashMap<String, java.util.List<JSONObject>> grouped =
+            new java.util.LinkedHashMap<>();
         for (int i = list.length() - 1; i >= 0; i--) {
           JSONObject entry = list.optJSONObject(i);
           if (entry == null)
@@ -60,8 +62,18 @@ public class ReadHistoryViewer {
           String entryChatId = entry.optString("chatId");
           if (targetChatId == null || targetChatId.equals(entryChatId)) {
             found = true;
-            addHistoryItem(activity, container, entry, isDark);
+            String msgId = entry.optString("msgId");
+            String key = (msgId != null && !msgId.isEmpty())
+                             ? (entryChatId + "_" + msgId)
+                             : ("unknown_" + i);
+            if (!grouped.containsKey(key)) {
+              grouped.put(key, new java.util.ArrayList<>());
+            }
+            grouped.get(key).add(entry);
           }
+        }
+        for (java.util.List<JSONObject> group : grouped.values()) {
+          addGroupedHistoryItem(activity, container, group, isDark);
         }
       }
 
@@ -104,13 +116,14 @@ public class ReadHistoryViewer {
     }
   }
 
-  private static void addHistoryItem(Activity activity, LinearLayout container,
-                                     JSONObject entry, boolean isDark) {
-    String mid = entry.optString("memberMid", "???");
-    String messageText = entry.optString("messageText", "");
-    long timestamp = entry.optLong("timestamp", 0);
-
-    String name = resolveMemberName(activity, mid);
+  private static void addGroupedHistoryItem(Activity activity,
+                                            LinearLayout container,
+                                            java.util.List<JSONObject> entries,
+                                            boolean isDark) {
+    if (entries == null || entries.isEmpty())
+      return;
+    JSONObject firstEntry = entries.get(0);
+    String messageText = firstEntry.optString("messageText", "");
 
     LinearLayout card = new LinearLayout(activity);
     card.setOrientation(LinearLayout.VERTICAL);
@@ -139,34 +152,42 @@ public class ReadHistoryViewer {
     contentText.setPadding(0, 0, 0, 15);
     card.addView(contentText);
 
-    LinearLayout detailRow = new LinearLayout(activity);
-    detailRow.setOrientation(LinearLayout.HORIZONTAL);
-    detailRow.setGravity(Gravity.CENTER_VERTICAL);
-
-    TextView nameText = new TextView(activity);
-    nameText.setText(name != null ? name : mid);
-    nameText.setTextColor(isDark ? Color.parseColor("#AAAAAA")
-                                 : Color.parseColor("#666666"));
-    nameText.setTextSize(15);
-
-    LinearLayout.LayoutParams lpName =
-        new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                                      ViewGroup.LayoutParams.WRAP_CONTENT);
-    nameText.setLayoutParams(lpName);
-    detailRow.addView(nameText);
-
-    TextView timeText = new TextView(activity);
     SimpleDateFormat fmt =
         new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.JAPAN);
 
-    timeText.setText(timestamp > 0 ? fmt.format(new Date(timestamp)) : "");
-    timeText.setTextSize(12);
-    timeText.setTextColor(isDark ? Color.parseColor("#888888")
-                                 : Color.parseColor("#999999"));
-    timeText.setPadding(20, 0, 0, 0);
-    detailRow.addView(timeText);
+    for (JSONObject entry : entries) {
+      String mid = entry.optString("memberMid", "???");
+      long timestamp = entry.optLong("timestamp", 0);
+      String name = resolveMemberName(activity, mid);
 
-    card.addView(detailRow);
+      LinearLayout detailRow = new LinearLayout(activity);
+      detailRow.setOrientation(LinearLayout.HORIZONTAL);
+      detailRow.setGravity(Gravity.CENTER_VERTICAL);
+      detailRow.setPadding(0, 5, 0, 5);
+
+      TextView nameText = new TextView(activity);
+      nameText.setText(name != null ? name : mid);
+      nameText.setTextColor(isDark ? Color.parseColor("#AAAAAA")
+                                   : Color.parseColor("#666666"));
+      nameText.setTextSize(15);
+
+      LinearLayout.LayoutParams lpName =
+          new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                                        ViewGroup.LayoutParams.WRAP_CONTENT);
+      nameText.setLayoutParams(lpName);
+      detailRow.addView(nameText);
+
+      TextView timeText = new TextView(activity);
+      timeText.setText(timestamp > 0 ? fmt.format(new Date(timestamp)) : "");
+      timeText.setTextSize(12);
+      timeText.setTextColor(isDark ? Color.parseColor("#888888")
+                                   : Color.parseColor("#999999"));
+      timeText.setPadding(20, 0, 0, 0);
+      detailRow.addView(timeText);
+
+      card.addView(detailRow);
+    }
+
     container.addView(card);
 
     View margin = new View(activity);
