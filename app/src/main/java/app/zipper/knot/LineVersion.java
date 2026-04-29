@@ -118,6 +118,7 @@ public class LineVersion {
       public String methodSendReadReceipt = "";
       public String methodExecuteReadReceiptAsync = "";
       public String methodReadAll = "";
+      public String operationNotifiedReadName = "NOTIFIED_READ_MESSAGE";
     }
 
     public static class Unsend {

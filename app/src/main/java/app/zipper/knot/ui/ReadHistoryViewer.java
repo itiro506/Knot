@@ -2,8 +2,6 @@ package app.zipper.knot.ui;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.Gravity;
@@ -15,10 +13,6 @@ import android.widget.TextView;
 import app.zipper.knot.SettingsStore;
 import app.zipper.knot.utils.ModuleStrings;
 import de.robv.android.xposed.XposedBridge;
-import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -27,9 +21,10 @@ public class ReadHistoryViewer {
   public static void show(Activity activity, String targetChatId) {
     try {
       JSONObject historyJson = SettingsStore.loadReadHistory();
-      JSONArray list = historyJson.optJSONArray("read_history");
+      JSONObject chats = historyJson.optJSONObject("c");
 
-      String chatName = resolveChatName(activity, targetChatId);
+      String chatName =
+          app.zipper.knot.utils.LineDBUtils.resolveChatName(targetChatId);
 
       ScrollView scrollView = new ScrollView(activity);
       LinearLayout container = new LinearLayout(activity);
@@ -51,29 +46,28 @@ public class ReadHistoryViewer {
       container.addView(header);
 
       boolean found = false;
-      if (list != null) {
-        java.util.LinkedHashMap<String, java.util.List<JSONObject>> grouped =
-            new java.util.LinkedHashMap<>();
-        for (int i = list.length() - 1; i >= 0; i--) {
-          JSONObject entry = list.optJSONObject(i);
-          if (entry == null)
-            continue;
-
-          String entryChatId = entry.optString("chatId");
-          if (targetChatId == null || targetChatId.equals(entryChatId)) {
-            found = true;
-            String msgId = entry.optString("msgId");
-            String key = (msgId != null && !msgId.isEmpty())
-                             ? (entryChatId + "_" + msgId)
-                             : ("unknown_" + i);
-            if (!grouped.containsKey(key)) {
-              grouped.put(key, new java.util.ArrayList<>());
+      if (chats != null) {
+        if (targetChatId != null) {
+          JSONObject chat = chats.optJSONObject(targetChatId);
+          if (chat != null) {
+            JSONObject messages = chat.optJSONObject("m");
+            if (messages != null) {
+              found = true;
+              renderMessages(activity, container, messages, isDark);
             }
-            grouped.get(key).add(entry);
           }
-        }
-        for (java.util.List<JSONObject> group : grouped.values()) {
-          addGroupedHistoryItem(activity, container, group, isDark);
+        } else {
+          java.util.Iterator<String> chatKeys = chats.keys();
+          while (chatKeys.hasNext()) {
+            JSONObject chat = chats.optJSONObject(chatKeys.next());
+            if (chat != null) {
+              JSONObject messages = chat.optJSONObject("m");
+              if (messages != null) {
+                found = true;
+                renderMessages(activity, container, messages, isDark);
+              }
+            }
+          }
         }
       }
 
@@ -116,14 +110,32 @@ public class ReadHistoryViewer {
     }
   }
 
-  private static void addGroupedHistoryItem(Activity activity,
-                                            LinearLayout container,
-                                            java.util.List<JSONObject> entries,
-                                            boolean isDark) {
-    if (entries == null || entries.isEmpty())
-      return;
-    JSONObject firstEntry = entries.get(0);
-    String messageText = firstEntry.optString("messageText", "");
+  private static void renderMessages(Activity activity, LinearLayout container,
+                                     JSONObject messages, boolean isDark) {
+    java.util.List<String> sortedKeys = new java.util.ArrayList<>();
+    java.util.Iterator<String> keys = messages.keys();
+    while (keys.hasNext()) {
+      sortedKeys.add(keys.next());
+    }
+    java.util.Collections.sort(sortedKeys, (a, b) -> {
+      try {
+        return Long.compare(Long.parseLong(b), Long.parseLong(a));
+      } catch (Exception e) {
+        return b.compareTo(a);
+      }
+    });
+
+    for (String msgId : sortedKeys) {
+      JSONObject msg = messages.optJSONObject(msgId);
+      if (msg == null)
+        continue;
+      addMessageCard(activity, container, msg, isDark);
+    }
+  }
+
+  private static void addMessageCard(Activity activity, LinearLayout container,
+                                     JSONObject msg, boolean isDark) {
+    String messageText = msg.optString("c", "");
 
     LinearLayout card = new LinearLayout(activity);
     card.setOrientation(LinearLayout.VERTICAL);
@@ -152,113 +164,54 @@ public class ReadHistoryViewer {
     contentText.setPadding(0, 0, 0, 15);
     card.addView(contentText);
 
-    SimpleDateFormat fmt =
-        new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.JAPAN);
+    JSONObject readers = msg.optJSONObject("r");
+    if (readers != null) {
+      java.util.Iterator<String> rKeys = readers.keys();
+      while (rKeys.hasNext()) {
+        String rMid = rKeys.next();
+        JSONObject reader = readers.optJSONObject(rMid);
+        if (reader == null)
+          continue;
 
-    for (JSONObject entry : entries) {
-      String mid = entry.optString("memberMid", "???");
-      long timestamp = entry.optLong("timestamp", 0);
-      String name = resolveMemberName(activity, mid);
+        String readerName = reader.optString("n", "Unknown");
+        String readTime = reader.optString("t", "");
 
-      LinearLayout detailRow = new LinearLayout(activity);
-      detailRow.setOrientation(LinearLayout.HORIZONTAL);
-      detailRow.setGravity(Gravity.CENTER_VERTICAL);
-      detailRow.setPadding(0, 5, 0, 5);
+        LinearLayout detailRow = new LinearLayout(activity);
+        detailRow.setOrientation(LinearLayout.HORIZONTAL);
+        detailRow.setGravity(Gravity.CENTER_VERTICAL);
+        detailRow.setPadding(0, 5, 0, 5);
 
-      TextView nameText = new TextView(activity);
-      nameText.setText(name != null ? name : mid);
-      nameText.setTextColor(isDark ? Color.parseColor("#AAAAAA")
-                                   : Color.parseColor("#666666"));
-      nameText.setTextSize(15);
+        TextView nameText = new TextView(activity);
+        nameText.setText(readerName);
+        nameText.setTextColor(isDark ? Color.parseColor("#AAAAAA")
+                                     : Color.parseColor("#666666"));
+        nameText.setTextSize(15);
+        detailRow.addView(nameText);
 
-      LinearLayout.LayoutParams lpName =
-          new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                                        ViewGroup.LayoutParams.WRAP_CONTENT);
-      nameText.setLayoutParams(lpName);
-      detailRow.addView(nameText);
+        TextView timeText = new TextView(activity);
+        timeText.setText(readTime);
+        timeText.setTextSize(12);
+        timeText.setTextColor(isDark ? Color.parseColor("#888888")
+                                     : Color.parseColor("#999999"));
+        timeText.setPadding(20, 0, 0, 0);
+        detailRow.addView(timeText);
 
-      TextView timeText = new TextView(activity);
-      timeText.setText(timestamp > 0 ? fmt.format(new Date(timestamp)) : "");
-      timeText.setTextSize(12);
-      timeText.setTextColor(isDark ? Color.parseColor("#888888")
-                                   : Color.parseColor("#999999"));
-      timeText.setPadding(20, 0, 0, 0);
-      detailRow.addView(timeText);
-
-      card.addView(detailRow);
+        card.addView(detailRow);
+      }
     }
 
     container.addView(card);
-
     View margin = new View(activity);
     container.addView(margin, new LinearLayout.LayoutParams(
                                   ViewGroup.LayoutParams.MATCH_PARENT, 15));
   }
 
-  private static String resolveMemberName(Activity activity, String mid) {
-    if (mid == null)
-      return null;
-    try {
-      File dbFile = activity.getDatabasePath("contact");
-      if (dbFile.exists()) {
-        SQLiteDatabase db = SQLiteDatabase.openDatabase(
-            dbFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
-        Cursor cursor =
-            db.rawQuery("SELECT profile_name FROM contacts WHERE mid = ?",
-                        new String[] {mid});
-        if (cursor.moveToFirst()) {
-          String name = cursor.getString(0);
-          cursor.close();
-          db.close();
-          return name;
-        }
-        cursor.close();
-        db.close();
-      }
-    } catch (Throwable t) {
-      XposedBridge.log("Knot: DB name resolution failed: " + t);
-    }
-    return null;
-  }
-
-  private static String resolveChatName(Activity activity, String chatId) {
-    if (chatId == null)
-      return null;
-    try {
-      File dbFile = activity.getDatabasePath("naver_line");
-      if (dbFile.exists()) {
-        SQLiteDatabase db = SQLiteDatabase.openDatabase(
-            dbFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
-        Cursor cursor = db.rawQuery(
-            "SELECT chat_name FROM chat_history WHERE chat_id = ? LIMIT 1",
-            new String[] {chatId});
-        if (cursor.moveToFirst()) {
-          String name = cursor.getString(0);
-          cursor.close();
-          db.close();
-          return name;
-        }
-        cursor.close();
-        db.close();
-      }
-    } catch (Throwable t) {
-    }
-    return null;
-  }
-
   private static void clearChatHistory(String chatId) {
     try {
       JSONObject historyJson = SettingsStore.loadReadHistory();
-      JSONArray list = historyJson.optJSONArray("read_history");
-      if (list != null) {
-        JSONArray newList = new JSONArray();
-        for (int i = 0; i < list.length(); i++) {
-          JSONObject entry = list.optJSONObject(i);
-          if (entry != null && !chatId.equals(entry.optString("chatId"))) {
-            newList.put(entry);
-          }
-        }
-        historyJson.put("read_history", newList);
+      JSONObject chats = historyJson.optJSONObject("c");
+      if (chats != null && chats.has(chatId)) {
+        chats.remove(chatId);
         SettingsStore.saveReadHistory(historyJson);
       }
     } catch (Exception e) {

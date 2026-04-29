@@ -90,6 +90,7 @@ public class Version265 {
     v.readReceipt.methodSendReadReceipt = "d";
     v.readReceipt.methodExecuteReadReceiptAsync = "e";
     v.readReceipt.methodReadAll = "c";
+    v.readReceipt.operationNotifiedReadName = "NOTIFIED_READ_MESSAGE";
 
     v.unsend.talkServiceHookClass = "hg8.ae$a";
     v.unsend.chatMessageViewHolderClass = "lc1.i";

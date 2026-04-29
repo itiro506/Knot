@@ -94,10 +94,6 @@ public class KnotConfig {
       "record_read_history", ModuleStrings.OPT_RECORD_READ_HISTORY_LABEL,
       ModuleStrings.OPT_RECORD_READ_HISTORY_DESC, false, Category.CHAT);
 
-  public Item recordOthersRead =
-      new Item("record_others_read", ModuleStrings.OPT_RECORD_OTHERS_READ_LABEL,
-               ModuleStrings.OPT_RECORD_OTHERS_READ_DESC, false, Category.CHAT);
-
   public Item removeNotificationMuteButton =
       new Item("remove_notification_mute_button",
                ModuleStrings.OPT_REMOVE_NOTIFICATION_MUTE_BUTTON_LABEL,
@@ -147,7 +143,6 @@ public class KnotConfig {
                          preventUnsendMessage,
                          spoofVersionUnsendOnly,
                          recordReadHistory,
-                         recordOthersRead,
                          openUrlInDefaultBrowser,
                          removeNotificationMuteButton,
                          fixNotifications,

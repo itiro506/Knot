@@ -25,37 +25,84 @@ public class ReadReceiptHandler implements BaseHook {
     LineVersion.Config cfg = LineVersion.get();
 
     try {
-      Class<?> readQueueCls =
-          lpparam.classLoader.loadClass(cfg.readReceipt.readReceiptQueueClass);
       XposedBridge.hookAllMethods(
-          readQueueCls, cfg.readReceipt.methodEnqueueReadReceipt,
-          new XC_MethodHook() {
+          XposedHelpers.findClass(cfg.unsend.talkServiceHookClass,
+                                  lpparam.classLoader),
+          cfg.unsend.methodReadBuffer, new XC_MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
               try {
                 if (!SettingsStore.get("record_read_history", false))
                   return;
-                if (param.args == null || param.args.length < 4)
+
+                Object op = cfg.unsend.isOpReadScheme ? param.args[1]
+                                                      : param.thisObject;
+                if (op == null || op instanceof String)
                   return;
-                long createdTime = (long)param.args[0];
-                String chatId = (String)param.args[1];
-                String senderMid = (String)param.args[2];
-                long lastMsgId = (long)param.args[3];
-                if (chatId == null || senderMid == null)
+
+                Object type = XposedHelpers.getObjectField(
+                    op, cfg.unsend.operationTypeField);
+                if (type == null)
                   return;
-                recordReadReceipt(chatId, senderMid, String.valueOf(lastMsgId),
-                                  createdTime);
+
+                if (cfg.readReceipt.operationNotifiedReadName.equals(
+                        type.toString())) {
+                  long createdTime = XposedHelpers.getLongField(
+                      op, cfg.unsend.operationCreatedTimeField);
+                  String chatId = (String)XposedHelpers.getObjectField(
+                      op, cfg.unsend.operationParam1Field);
+                  String senderMid = (String)XposedHelpers.getObjectField(
+                      op, cfg.unsend.operationParam2Field);
+                  String lastMsgId = (String)XposedHelpers.getObjectField(
+                      op, cfg.unsend.operationParam3Field);
+
+                  if (chatId != null && senderMid != null &&
+                      lastMsgId != null) {
+                    boolean recordOthers = false;
+                    String myMid = app.zipper.knot.utils.LineDBUtils.getMyMid();
+
+                    JSONObject historyJson = SettingsStore.loadReadHistory();
+                    JSONObject chats = historyJson.optJSONObject("c");
+                    long maxId = -1;
+                    if (chats != null) {
+                      JSONObject chat = chats.optJSONObject(chatId);
+                      if (chat != null) {
+                        JSONObject messages = chat.optJSONObject("m");
+                        if (messages != null) {
+                          java.util.Iterator<String> keys = messages.keys();
+                          while (keys.hasNext()) {
+                            try {
+                              long sid = Long.parseLong(keys.next());
+                              if (sid > maxId)
+                                maxId = sid;
+                            } catch (NumberFormatException ignored) {
+                            }
+                          }
+                        }
+                      }
+                    }
+
+                    java.util
+                        .List<app.zipper.knot.utils.LineDBUtils.MessageRecord>
+                            records =
+                        app.zipper.knot.utils.LineDBUtils
+                            .fetchMessagesForRecording(chatId, lastMsgId, myMid,
+                                                       recordOthers, maxId);
+
+                    if (!records.isEmpty()) {
+                      saveReadEvents(chatId, senderMid, records, createdTime,
+                                     historyJson);
+                    }
+                  }
+                }
               } catch (Throwable t) {
-                XposedBridge.log("Knot: record error: " + t);
+                XposedBridge.log("Knot: ReadHistory Error: " + t.getMessage());
               }
             }
           });
     } catch (Throwable t) {
-      XposedBridge.log("Knot: Failed to hook " +
-                       cfg.readReceipt.readReceiptQueueClass + "#" +
-                       cfg.readReceipt.methodEnqueueReadReceipt + ": " + t);
+      XposedBridge.log("Knot: Failed to hook Operation for read history: " + t);
     }
-
     try {
       Class<?> thriftCls =
           lpparam.classLoader.loadClass(cfg.thrift.talkServiceClientImplClass);
@@ -207,54 +254,71 @@ public class ReadReceiptHandler implements BaseHook {
     return false;
   }
 
-  private static void recordReadReceipt(String chatId, String senderMid,
-                                        String msgId, long timestamp) {
+  private static void saveReadEvents(
+      String chatId, String readerMid,
+      java.util.List<app.zipper.knot.utils.LineDBUtils.MessageRecord> records,
+      long readTime, JSONObject historyJson) {
+    if (records == null || records.isEmpty())
+      return;
+
     try {
-      Context context = AndroidAppHelper.currentApplication();
-      if (context == null)
-        return;
-
-      boolean recordOthers = SettingsStore.get("record_others_read", false);
-      String fromMid =
-          app.zipper.knot.utils.LineDBUtils.resolveMessageSender(msgId);
-
-      if (!recordOthers && fromMid != null && !fromMid.trim().isEmpty()) {
-        return;
+      JSONObject chats = historyJson.optJSONObject("c");
+      if (chats == null) {
+        chats = new JSONObject();
+        historyJson.put("c", chats);
       }
 
-      String messageText =
-          app.zipper.knot.utils.LineDBUtils.resolveMessageContent(msgId);
-
-      JSONObject history = SettingsStore.loadReadHistory();
-      JSONArray list = history.optJSONArray("read_history");
-      if (list == null) {
-        list = new JSONArray();
-        history.put("read_history", list);
+      JSONObject chat = chats.optJSONObject(chatId);
+      if (chat == null) {
+        chat = new JSONObject();
+        chats.put(chatId, chat);
       }
 
-      for (int i = 0; i < list.length(); i++) {
-        JSONObject o = list.optJSONObject(i);
-        if (o != null && chatId.equals(o.optString("chatId")) &&
-            senderMid.equals(o.optString("memberMid")) &&
-            msgId.equals(o.optString("msgId"))) {
-          return;
+      JSONObject messages = chat.optJSONObject("m");
+      if (messages == null) {
+        messages = new JSONObject();
+        chat.put("m", messages);
+      }
+
+      String readerName =
+          app.zipper.knot.utils.LineDBUtils.resolveMemberName(readerMid);
+      java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(
+          "yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault());
+      String formattedReadTime = sdf.format(new java.util.Date(readTime));
+
+      boolean isDirty = false;
+      for (app.zipper.knot.utils.LineDBUtils.MessageRecord record : records) {
+        if (!chat.has("n")) {
+          chat.put("n", record.chatName);
+        }
+
+        JSONObject msgEntry = messages.optJSONObject(record.id);
+        if (msgEntry == null) {
+          msgEntry = new JSONObject();
+          msgEntry.put("c", record.text);
+          msgEntry.put("sn", record.senderName);
+          msgEntry.put("sm", record.senderMid);
+          msgEntry.put("ct", record.timestamp);
+          msgEntry.put("r", new JSONObject());
+          messages.put(record.id, msgEntry);
+          isDirty = true;
+        }
+
+        JSONObject readers = msgEntry.optJSONObject("r");
+        if (readers != null && !readers.has(readerMid)) {
+          JSONObject rInfo = new JSONObject();
+          rInfo.put("n", readerName != null ? readerName : "Unknown");
+          rInfo.put("t", formattedReadTime);
+          readers.put(readerMid, rInfo);
+          isDirty = true;
         }
       }
 
-      JSONObject entry = new JSONObject();
-      entry.put("chatId", chatId);
-      entry.put("memberMid", senderMid);
-      entry.put("msgId", msgId);
-      entry.put("messageText", messageText != null ? messageText : "");
-      entry.put("timestamp",
-                timestamp > 0 ? timestamp : System.currentTimeMillis());
-      list.put(entry);
-
-      history.put("read_history", list);
-
-      SettingsStore.saveReadHistory(history);
+      if (isDirty) {
+        SettingsStore.saveReadHistory(historyJson);
+      }
     } catch (Throwable t) {
-      XposedBridge.log("Knot: save error: " + t);
+      XposedBridge.log("Knot: Failed to save read events: " + t.getMessage());
     }
   }
 }

@@ -101,11 +101,6 @@ public class ModuleStrings {
   public static final String OPT_RECORD_READ_HISTORY_DESC =
       "誰がいつメッセージを既読にしたかを記録します。チャット画面上部の本アイ"
       + "コンから確認できます。";
-  public static final String OPT_RECORD_OTHERS_READ_LABEL =
-      "他人のメッセージの既読も記録";
-  public static final String OPT_RECORD_OTHERS_READ_DESC =
-      "自分が送信したメッセージ以外の既読も記録します。※一部しか記録されませ"
-      + "ん。";
 
   public static final String OPT_THEME_FREE_LABEL = "着せかえ無料化";
   public static final String OPT_THEME_FREE_DESC =
