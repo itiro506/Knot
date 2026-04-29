@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -14,8 +15,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextWatcher;
+import android.text.method.LinkMovementMethod;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
+import android.text.util.Linkify;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,9 +33,12 @@ import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import app.zipper.knot.BuildConfig;
 import app.zipper.knot.KnotConfig;
 import app.zipper.knot.LineVersion;
 import app.zipper.knot.Main;
@@ -42,7 +54,6 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
 
 public class SettingsUIInjector implements BaseHook {
 
@@ -727,12 +738,19 @@ public class SettingsUIInjector implements BaseHook {
                     .toLowerCase());
 
     injectSectionHeader(layoutInfl, mainList, ModuleStrings.CAT_OTHER);
+    injectAboutRow(layoutInfl, mainList, ctx);
+    mainList.getChildAt(mainList.getChildCount() - 1)
+        .setTag(
+            (ModuleStrings.OPT_ABOUT_LABEL + " " + ModuleStrings.OPT_ABOUT_DESC)
+                .toLowerCase());
+
     injectResetRow(layoutInfl, mainList, ctx, activeConfig,
                    ModuleStrings.DESC_RESET_ROW);
     mainList.getChildAt(mainList.getChildCount() - 1)
         .setTag(
             (ModuleStrings.SETTINGS_RESET + " " + ModuleStrings.DESC_RESET_ROW)
                 .toLowerCase());
+
     return mainList;
   }
 
@@ -953,6 +971,101 @@ public class SettingsUIInjector implements BaseHook {
         host.startActivityForResult(intent, PICK_RESTORE_DB_CODE);
       });
       parent.addView(rRow);
+    } catch (Throwable ignored) {
+    }
+  }
+
+  private void injectAboutRow(LayoutInflater infl, LinearLayout parent,
+                              Context ctx) {
+    try {
+      LineVersion.Config currentCfg = LineVersion.get();
+      View aRow = infl.inflate(currentCfg.res.typeRow, parent, false);
+      applyVisibility(aRow, currentCfg.res.idIcon, View.GONE);
+      applyVisibility(aRow, currentCfg.res.idArrow, View.VISIBLE);
+
+      TextView titleLabel = aRow.findViewById(currentCfg.res.idTitle);
+      titleLabel.setText(ModuleStrings.OPT_ABOUT_LABEL);
+      TextView descLabel = aRow.findViewById(currentCfg.res.idDesc);
+      descLabel.setText(ModuleStrings.OPT_ABOUT_DESC);
+      descLabel.setVisibility(View.VISIBLE);
+
+      aRow.setOnClickListener(v -> {
+        Context activeCtx =
+            settingsDialog != null ? settingsDialog.getContext() : ctx;
+        int themeId = ThemeUtils.isContextDarkTheme(activeCtx)
+                          ? android.app.AlertDialog.THEME_DEVICE_DEFAULT_DARK
+                          : android.app.AlertDialog.THEME_DEVICE_DEFAULT_LIGHT;
+        boolean isDark = ThemeUtils.isContextDarkTheme(activeCtx);
+
+        LinearLayout layout = new LinearLayout(activeCtx);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER_HORIZONTAL);
+        float density = activeCtx.getResources().getDisplayMetrics().density;
+        int p = (int)(24 * density);
+        layout.setPadding(p, p, p, p);
+
+        try {
+          Context modCtx = activeCtx.createPackageContext(
+              "app.zipper.knot", Context.CONTEXT_IGNORE_SECURITY);
+          int resId = modCtx.getResources().getIdentifier("ic_knot", "drawable",
+                                                          "app.zipper.knot");
+          if (resId != 0) {
+            ImageView logo = new ImageView(activeCtx);
+            logo.setImageDrawable(modCtx.getDrawable(resId));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                (int)(64 * density), (int)(64 * density));
+            lp.bottomMargin = (int)(16 * density);
+            logo.setLayoutParams(lp);
+            layout.addView(logo);
+          }
+        } catch (Throwable ignored) {
+        }
+
+        String fullText = String.format(ModuleStrings.ABOUT_CONTENT,
+                                        BuildConfig.VERSION_NAME);
+        String[] lines = fullText.split("\n", 2);
+        String headerLine = lines[0];
+        String bodyText = lines.length > 1 ? lines[1] : "";
+
+        String titleStr = BRAND_TAG;
+        String verStr = headerLine.replace(BRAND_TAG, "").trim();
+
+        TextView title = new TextView(activeCtx);
+        title.setText(titleStr);
+        title.setTextSize(20);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setTextColor(isDark ? Color.WHITE : Color.BLACK);
+        title.setGravity(Gravity.CENTER_HORIZONTAL);
+        layout.addView(title);
+
+        TextView ver = new TextView(activeCtx);
+        ver.setText(verStr);
+        ver.setTextSize(12);
+        ver.setTextColor(isDark ? Color.GRAY : Color.DKGRAY);
+        ver.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams verLp = new LinearLayout.LayoutParams(-2, -2);
+        verLp.bottomMargin = (int)(24 * density);
+        ver.setLayoutParams(verLp);
+        layout.addView(ver);
+
+        TextView content = new TextView(activeCtx);
+        content.setText(bodyText);
+        content.setTextSize(14);
+        content.setTextColor(isDark ? Color.LTGRAY : Color.BLACK);
+        content.setGravity(Gravity.CENTER_HORIZONTAL);
+        content.setLineSpacing(0, 1.2f);
+        content.setAutoLinkMask(Linkify.WEB_URLS);
+        content.setMovementMethod(LinkMovementMethod.getInstance());
+        content.setLinkTextColor(isDark ? Color.parseColor("#4dabf7")
+                                        : Color.parseColor("#1971c2"));
+        layout.addView(content);
+
+        new AlertDialog.Builder(activeCtx, themeId)
+            .setView(layout)
+            .setPositiveButton(ModuleStrings.SETTINGS_YES, null)
+            .show();
+      });
+      parent.addView(aRow);
     } catch (Throwable ignored) {
     }
   }

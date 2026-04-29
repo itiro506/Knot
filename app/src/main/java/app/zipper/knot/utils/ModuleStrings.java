@@ -143,8 +143,8 @@ public class ModuleStrings {
   public static final String OPT_REACTION_NOTIFICATION_LABEL =
       "リアクション通知";
   public static final String OPT_REACTION_NOTIFICATION_DESC =
-      "メッセージについたリアクションを通知します。※アプリを開くと送信されま" +
-      "す。";
+      "メッセージについたリアクションを通知します。※アプリを開くと送信されま"
+      + "す。";
 
   // Hidden as it breaks notifications when app is frozen; pending a better
   // solution.
@@ -199,4 +199,14 @@ public class ModuleStrings {
   public static final String REACTION_NOTIF_TITLE =
       "%sが以下のメッセージにリアクションしました";
   public static final String REACTION_NOTIF_BODY = "%s";
+  public static final String OPT_ABOUT_LABEL = "Knotについて";
+  public static final String OPT_ABOUT_DESC = "バージョン情報など";
+  public static final String ABOUT_TITLE = "Knotについて";
+  public static final String ABOUT_CONTENT =
+      "Knot v%s\n"
+      + "A brand-new Xposed module for LINE\n\n"
+      + "Developed by 2b-zipper\n\n"
+      + "GitHub: https://github.com/2b-zipper/Knot\n"
+      + "License: GNU GPLv3\n\n"
+      + "⚠️ 使用は自己責任で行ってください。";
 }
