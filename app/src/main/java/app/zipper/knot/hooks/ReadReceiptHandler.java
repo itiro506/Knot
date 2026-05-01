@@ -20,8 +20,8 @@ public class ReadReceiptHandler implements BaseHook {
   private static volatile long bypassExpiry = 0L;
 
   @Override
-  public void hook(KnotConfig config, XC_LoadPackage.LoadPackageParam lpparam)
-      throws Throwable {
+  public void hook(final KnotConfig config,
+                   XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
     LineVersion.Config cfg = LineVersion.get();
 
     try {
@@ -120,7 +120,8 @@ public class ReadReceiptHandler implements BaseHook {
               if (!isTarget)
                 return;
 
-              if (!SettingsStore.get("prevent_read_state", true))
+              if (!config.preventMarkAsRead.enabled ||
+                  !SettingsStore.get("prevent_read_state", true))
                 return;
               if (SettingsStore.get("send_mark_state", false) &&
                   bypassExpiry > System.currentTimeMillis())
@@ -163,7 +164,8 @@ public class ReadReceiptHandler implements BaseHook {
             new XC_MethodHook() {
               @Override
               protected void beforeHookedMethod(MethodHookParam param) {
-                if (!SettingsStore.get("prevent_read_state", true))
+                if (!config.preventMarkAsRead.enabled ||
+                    !SettingsStore.get("prevent_read_state", true))
                   return;
 
                 java.lang.reflect.Method m =
@@ -187,7 +189,8 @@ public class ReadReceiptHandler implements BaseHook {
             new XC_MethodHook() {
               @Override
               protected void beforeHookedMethod(MethodHookParam param) {
-                if (SettingsStore.get("prevent_read_state", true) &&
+                if (config.preventMarkAsRead.enabled &&
+                    SettingsStore.get("prevent_read_state", true) &&
                     SettingsStore.get("send_mark_state", false)) {
                   Class<?>[] params = ((java.lang.reflect.Method)param.method)
                                           .getParameterTypes();
@@ -201,7 +204,8 @@ public class ReadReceiptHandler implements BaseHook {
             managerCls, cfg.readReceipt.methodReadAll, new XC_MethodHook() {
               @Override
               protected void beforeHookedMethod(MethodHookParam param) {
-                if (SettingsStore.get("prevent_read_state", true) &&
+                if (config.preventMarkAsRead.enabled &&
+                    SettingsStore.get("prevent_read_state", true) &&
                     SettingsStore.get("send_mark_state", false)) {
                   if (((java.lang.reflect.Method)param.method)
                           .getParameterCount() == 0)
@@ -220,7 +224,8 @@ public class ReadReceiptHandler implements BaseHook {
       XC_MethodHook sendHook = new XC_MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) {
-          if (SettingsStore.get("prevent_read_state", true) &&
+          if (config.preventMarkAsRead.enabled &&
+              SettingsStore.get("prevent_read_state", true) &&
               SettingsStore.get("send_mark_state", false)) {
             bypassExpiry = System.currentTimeMillis() + 2000;
           }
