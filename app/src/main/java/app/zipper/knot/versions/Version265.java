@@ -228,10 +228,20 @@ public class Version265 {
     v.res.idTimestamp = 0x7f0b08f7;
     v.res.resSettingsHeaderBtn = "settings_header_button";
     v.res.resSettingsBtn = "settings_button";
-    
-    v.notification.chatHistoryRequestClass = "com.linecorp.line.chat.request.ChatHistoryRequest";
-    v.notification.chatHistoryActivityLaunchActivityClass = "jp.naver.line.android.activity.chathistory.ChatHistoryActivityLaunchActivity";
-    v.notification.lineAppVersionClass = "jp.naver.line.android.common.LineAppVersion";
+
+    v.notification.chatHistoryRequestClass =
+        "com.linecorp.line.chat.request.ChatHistoryRequest";
+    v.notification.chatHistoryActivityLaunchActivityClass =
+        "jp.naver.line.android.activity.chathistory." +
+        "ChatHistoryActivityLaunchActivity";
+    v.notification.lineAppVersionClass =
+        "jp.naver.line.android.common.LineAppVersion";
+
+    v.talkTabHeader.chatTabHeaderStateClass = "jo1.f";
+    v.talkTabHeader.iconListStateField = "w";
+    v.talkTabHeader.buttonListStateField = "C";
+    v.talkTabHeader.iconTypeClass = "gu0.n";
+    v.talkTabHeader.iconTypeFieldInButton = "a";
 
     return v;
   }

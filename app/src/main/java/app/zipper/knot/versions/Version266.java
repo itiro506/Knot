@@ -240,6 +240,12 @@ public class Version266 {
     v.notification.lineAppVersionClass =
         "jp.naver.line.android.common.LineAppVersion";
 
+    v.talkTabHeader.chatTabHeaderStateClass = "pp1.e";
+    v.talkTabHeader.iconListStateField = "x";
+    v.talkTabHeader.buttonListStateField = "C";
+    v.talkTabHeader.iconTypeClass = "yu0.n";
+    v.talkTabHeader.iconTypeFieldInButton = "a";
+
     return v;
   }
 }

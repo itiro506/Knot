@@ -26,6 +26,7 @@ public class LineVersion {
     public ThemeFree themeFree = new ThemeFree();
     public StickerTrial stickerTrial = new StickerTrial();
     public Notification notification = new Notification();
+    public TalkTabHeader talkTabHeader = new TalkTabHeader();
 
     public static class Main {
       public String mainActivity = "";
@@ -281,6 +282,14 @@ public class LineVersion {
       public String chatHistoryRequestClass = "";
       public String chatHistoryActivityLaunchActivityClass = "";
       public String lineAppVersionClass = "";
+    }
+
+    public static class TalkTabHeader {
+      public String chatTabHeaderStateClass = "";
+      public String iconListStateField = "";
+      public String buttonListStateField = "";
+      public String iconTypeClass = "";
+      public String iconTypeFieldInButton = "";
     }
   }
 

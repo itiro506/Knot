@@ -68,6 +68,7 @@ public class Main
                           new RemoveAds(),
                           new RemoveHomeContents(),
                           new RemoveTabs(),
+                          new RemoveHeaderButtons(),
                           new PlusMenuHook(),
                           new SettingsButtonLongPress(),
                           new ShowConfigWarning(),

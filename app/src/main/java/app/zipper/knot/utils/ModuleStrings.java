@@ -199,6 +199,15 @@ public class ModuleStrings {
   public static final String REACTION_NOTIF_TITLE =
       "%sが以下のメッセージにリアクションしました";
   public static final String REACTION_NOTIF_BODY = "%s";
+  public static final String OPT_REMOVE_AI_FRIENDS_BUTTON_LABEL =
+      "AI Friendsボタンを非表示";
+  public static final String OPT_REMOVE_AI_FRIENDS_BUTTON_DESC =
+      "トークタブ右上の「AI Friends」ボタンを非表示にします。";
+  public static final String OPT_REMOVE_OPEN_CHAT_BUTTON_LABEL =
+      "オープンチャットボタンを非表示";
+  public static final String OPT_REMOVE_OPEN_CHAT_BUTTON_DESC =
+      "トークタブ右上の「オープンチャット」ボタンを非表示にします。";
+
   public static final String OPT_ABOUT_LABEL = "Knotについて";
   public static final String OPT_ABOUT_DESC = "バージョン情報など";
   public static final String ABOUT_TITLE = "Knotについて";

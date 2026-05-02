@@ -117,6 +117,16 @@ public class KnotConfig {
       "sticker_trial", ModuleStrings.OPT_STICKER_TRIAL_LABEL,
       ModuleStrings.OPT_STICKER_TRIAL_DESC, false, Category.STICKER_THEME);
 
+  public Item removeAiFriendsButton = new Item(
+      "remove_ai_friends_button",
+      ModuleStrings.OPT_REMOVE_AI_FRIENDS_BUTTON_LABEL,
+      ModuleStrings.OPT_REMOVE_AI_FRIENDS_BUTTON_DESC, false, Category.DISPLAY);
+
+  public Item removeOpenChatButton = new Item(
+      "remove_open_chat_button",
+      ModuleStrings.OPT_REMOVE_OPEN_CHAT_BUTTON_LABEL,
+      ModuleStrings.OPT_REMOVE_OPEN_CHAT_BUTTON_DESC, false, Category.DISPLAY);
+
   public Item openUrlInDefaultBrowser = new Item(
       "open_url_in_default_browser",
       ModuleStrings.OPT_OPEN_URL_IN_DEFAULT_BROWSER_LABEL,
@@ -130,7 +140,9 @@ public class KnotConfig {
       "custom_font_path", ModuleStrings.OPT_CUSTOM_FONT_PATH_LABEL,
       ModuleStrings.OPT_CUSTOM_FONT_PATH_DESC, false, Category.DISPLAY);
 
-  public Item[] items = {removeAds,
+  public Item[] items = {removeAiFriendsButton,
+                         removeOpenChatButton,
+                         removeAds,
                          removeTabVoom,
                          removeTabNews,
                          removeTabMini,
