@@ -98,6 +98,11 @@ public class KnotConfig {
       "record_read_history", ModuleStrings.OPT_RECORD_READ_HISTORY_LABEL,
       ModuleStrings.OPT_RECORD_READ_HISTORY_DESC, false, Category.CHAT);
 
+  public Item hideAiIconPermanently = new Item(
+      "hide_ai_icon_permanently",
+      ModuleStrings.OPT_HIDE_AI_ICON_PERMANENTLY_LABEL,
+      ModuleStrings.OPT_HIDE_AI_ICON_PERMANENTLY_DESC, false, Category.CHAT);
+
   public Item removeNotificationMuteButton =
       new Item("remove_notification_mute_button",
                ModuleStrings.OPT_REMOVE_NOTIFICATION_MUTE_BUTTON_LABEL,
@@ -158,6 +163,7 @@ public class KnotConfig {
                          customFontPath,
                          preventMarkAsRead,
                          preventUnsendMessage,
+                         hideAiIconPermanently,
                          spoofVersionUnsendOnly,
                          recordReadHistory,
                          openUrlInDefaultBrowser,

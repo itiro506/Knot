@@ -80,7 +80,8 @@ public class Main
                           new BackupRestoreHook(),
                           new FixNotificationHook(),
                           new ThemeFreeHook(),
-                          new StickerTrialHook()};
+                          new StickerTrialHook(),
+                          new HideAiIconPermanently()};
 
       for (BaseHook h : hooks) {
         try {

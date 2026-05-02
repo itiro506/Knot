@@ -249,6 +249,9 @@ public class Version266 {
     v.talkTabHeader.iconTypeClass = "yu0.n";
     v.talkTabHeader.iconTypeFieldInButton = "a";
 
+    v.aiIcon.repoClass = "yw0.c";
+    v.aiIcon.methodGetShownAfterMillis = "i";
+
     return v;
   }
 }

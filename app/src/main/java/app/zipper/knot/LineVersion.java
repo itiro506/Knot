@@ -27,6 +27,7 @@ public class LineVersion {
     public StickerTrial stickerTrial = new StickerTrial();
     public Notification notification = new Notification();
     public TalkTabHeader talkTabHeader = new TalkTabHeader();
+    public AiIcon aiIcon = new AiIcon();
 
     public static class Main {
       public String mainActivity = "";
@@ -293,6 +294,11 @@ public class LineVersion {
       public String buttonListStateField = "";
       public String iconTypeClass = "";
       public String iconTypeFieldInButton = "";
+    }
+
+    public static class AiIcon {
+      public String repoClass = "";
+      public String methodGetShownAfterMillis = "";
     }
   }
 

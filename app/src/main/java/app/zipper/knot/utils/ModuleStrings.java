@@ -102,6 +102,13 @@ public class ModuleStrings {
       "誰がいつメッセージを既読にしたかを記録します。チャット画面上部の本アイ"
       + "コンから確認できます。";
 
+  public static final String OPT_HIDE_AI_ICON_PERMANENTLY_LABEL =
+      "AIアイコンを永久に非表示";
+  public static final String OPT_HIDE_AI_ICON_PERMANENTLY_DESC =
+      "チャット画面のテキストボックス内にあるAIアイコンを常に非表示に"
+      + "します。通常は30日間のみ非表示にできますが、このオプションを有効にする"
+      + "と設定に関わらず永続的に非表示になります。";
+
   public static final String OPT_THEME_FREE_LABEL = "着せかえ無料化";
   public static final String OPT_THEME_FREE_DESC =
       "ショップの着せかえをすべて所有済みにし、無料でダウンロード・適用できる"
