@@ -30,8 +30,7 @@ public class ModuleStrings {
   public static final String MANAGER_HINT_BROWSE = "フォルダ選択";
   public static final String MANAGER_HINT_MANUAL = "手動入力";
   public static final String MANAGER_DESC_STORAGE =
-      "機能の設定や履歴データの保存場所を指定します。LSPosed環境での動作に必"
-      + "要です。";
+      "機能の設定や履歴データの保存場所を指定します。";
   public static final String MANAGER_RESTART_REQUIRED =
       "LINEの再起動が必要です";
   public static final String MANAGER_RESTART_CONFIRM_TITLE = "リセットの確認";
