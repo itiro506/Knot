@@ -80,6 +80,15 @@ public class SettingsUIInjector implements BaseHook {
 
   private volatile Dialog settingsDialog = null;
   private volatile boolean pendingRestart = false;
+  private volatile KnotConfig.Category currentActiveCategory = null;
+  private volatile FrameLayout cachedItemHost = null;
+  private volatile View cachedNavHeader = null;
+  private volatile View cachedSearchView = null;
+
+  private static final KnotConfig.Category[] DISPLAY_CATEGORIES = {
+      KnotConfig.Category.CHAT, KnotConfig.Category.DISPLAY,
+      KnotConfig.Category.NOTIFICATION, KnotConfig.Category.STICKER_THEME,
+      KnotConfig.Category.EXPERIMENTAL};
 
   @Override
   public void hook(KnotConfig config, XC_LoadPackage.LoadPackageParam lpparam)
@@ -447,7 +456,11 @@ public class SettingsUIInjector implements BaseHook {
           new Dialog(host, android.R.style.Theme_DeviceDefault_NoActionBar) {
             @Override
             public void onBackPressed() {
-              initiateDialogClosure();
+              if (currentActiveCategory != null) {
+                switchPage(host, cachedToggle, cachedSuccess, null);
+              } else {
+                initiateDialogClosure();
+              }
             }
           };
       settingsDialog = dialog;
@@ -524,6 +537,10 @@ public class SettingsUIInjector implements BaseHook {
         .withEndAction(() -> {
           settingsDialog.dismiss();
           settingsDialog = null;
+          currentActiveCategory = null;
+          cachedItemHost = null;
+          cachedNavHeader = null;
+          cachedSearchView = null;
         })
         .start();
   }
@@ -609,20 +626,19 @@ public class SettingsUIInjector implements BaseHook {
         settingsRoot.setLayoutParams(viewLp);
 
         final FrameLayout itemHost = new FrameLayout(host);
-        final ScrollView scroller = new ScrollView(host);
-
-        itemHost.addView(renderSettingsItems(host, toggleType, statusEnum));
-        scroller.addView(itemHost);
+        itemHost.addView(
+            renderSettingsItems(host, toggleType, statusEnum, null, false));
+        cachedItemHost = itemHost;
+        cachedNavHeader = navHeader;
 
         setupSearchBox(host, isDark, settingsRoot, itemHost, toggleType,
                        statusEnum);
 
-        settingsRoot.addView(scroller, new LinearLayout.LayoutParams(-1, -1));
+        settingsRoot.addView(itemHost, new LinearLayout.LayoutParams(-1, -1));
         viewParent.addView(settingsRoot, viewIndex, viewLp);
 
         int bgColor = isDark ? Color.parseColor("#111111") : Color.WHITE;
         hostContainer.setBackgroundColor(bgColor);
-        scroller.setBackgroundColor(bgColor);
       }
       return hostContainer;
     } catch (Throwable t) {
@@ -632,147 +648,254 @@ public class SettingsUIInjector implements BaseHook {
     }
   }
 
-  private View renderSettingsItems(Context ctx, Object toggleType,
-                                   Object statusEnum) {
+  private void switchPage(Context ctx, Object toggleType, Object statusEnum,
+                          KnotConfig.Category category) {
+    if (cachedItemHost == null || cachedNavHeader == null)
+      return;
+
+    boolean isGoingForward =
+        (category != null && currentActiveCategory == null);
+    currentActiveCategory = category;
+
+    final View oldView = cachedItemHost.getChildAt(0);
+    final View newView =
+        renderSettingsItems(ctx, toggleType, statusEnum, category, false);
+
+    float width = cachedItemHost.getWidth();
+    newView.setTranslationX(isGoingForward ? width : -width);
+    cachedItemHost.addView(newView);
+
+    oldView.animate()
+        .translationX(isGoingForward ? -width : width)
+        .setDuration(250)
+        .setInterpolator(new DecelerateInterpolator())
+        .start();
+
+    newView.animate()
+        .translationX(0)
+        .setDuration(250)
+        .setInterpolator(new DecelerateInterpolator())
+        .withEndAction(() -> { cachedItemHost.removeView(oldView); })
+        .start();
+
     LineVersion.Config currentCfg = LineVersion.get();
-    LayoutInflater layoutInfl = LayoutInflater.from(ctx);
+    String title =
+        (category == null) ? ModuleStrings.SETTINGS_TITLE : category.label;
+    XposedHelpers.callMethod(cachedNavHeader,
+                             currentCfg.main.methodRefreshNavHeader,
+                             settingsDialog.getWindow());
+    XposedHelpers.callMethod(cachedNavHeader,
+                             currentCfg.main.methodHeaderSetTitle, title);
+
+    XposedHelpers.callMethod(cachedNavHeader,
+                             currentCfg.main.methodHeaderSetButtonListener,
+                             (View.OnClickListener)v -> {
+                               if (currentActiveCategory != null) {
+                                 switchPage(ctx, toggleType, statusEnum, null);
+                               } else {
+                                 initiateDialogClosure();
+                               }
+                             });
+  }
+
+  private View renderSettingsItems(Context ctx, Object toggleType,
+                                   Object statusEnum,
+                                   KnotConfig.Category targetCategory,
+                                   boolean showAll) {
+    LineVersion.Config currentCfg = LineVersion.get();
+    LayoutInflater infl = LayoutInflater.from(ctx);
+    boolean isDark = ThemeUtils.isContextDarkTheme(ctx);
+    int bgColor = isDark ? Color.parseColor("#111111") : Color.WHITE;
+
+    ScrollView scroller = new ScrollView(ctx);
+    scroller.setBackgroundColor(bgColor);
+
     LinearLayout mainList = new LinearLayout(ctx);
     mainList.setOrientation(LinearLayout.VERTICAL);
+    mainList.setBackgroundColor(bgColor);
+
     int bottomOffset =
         (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 64,
                                        ctx.getResources().getDisplayMetrics());
     mainList.setPadding(0, 0, 0, bottomOffset);
 
-    boolean isDark = ThemeUtils.isContextDarkTheme(ctx);
-    mainList.setBackgroundColor(isDark ? Color.parseColor("#111111")
-                                       : Color.WHITE);
-
-    injectSectionHeader(layoutInfl, mainList, ModuleStrings.CAT_STORAGE);
-    injectPathSelectorRow(layoutInfl, mainList, ctx,
-                          ModuleStrings.DESC_PATH_ROW);
-    mainList.getChildAt(mainList.getChildCount() - 1)
-        .setTag((ModuleStrings.CAT_STORAGE + " " + ModuleStrings.DESC_PATH_ROW)
-                    .toLowerCase());
-
-    KnotConfig activeConfig = Main.options;
-    int lastCategoryIndex = -1;
-    for (KnotConfig.Item i : activeConfig.items) {
-      int currentCatIdx = i.category.ordinal();
-      if (currentCatIdx != lastCategoryIndex) {
-        lastCategoryIndex = currentCatIdx;
-        injectSectionHeader(layoutInfl, mainList,
-                            resolveCategoryLabelText(currentCatIdx));
-      }
-      try {
-        final String settingKey = i.key;
-
-        // Temporarily hide this option until a solution is found for
-        // notification issues when app is frozen by freezer.
-        if (settingKey.equals("fix_notifications"))
-          continue;
-
-        View settingRow;
-
-        if (settingKey.equals("custom_font_path")) {
-          settingRow =
-              layoutInfl.inflate(currentCfg.res.typeRow, mainList, false);
-          applyVisibility(settingRow, currentCfg.res.idIcon, View.GONE);
-          applyVisibility(settingRow, currentCfg.res.idArrow, View.VISIBLE);
-
-          TextView title = settingRow.findViewById(currentCfg.res.idTitle);
-          title.setText(i.label);
-          TextView desc = settingRow.findViewById(currentCfg.res.idDesc);
-          desc.setText(i.description);
-          desc.setVisibility(View.VISIBLE);
-
-          settingRow.setOnClickListener(v -> {
-            Activity host = resolveActivity(ctx);
-            if (host == null)
-              return;
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.addCategory(Intent.CATEGORY_OPENABLE);
-            intent.setType("*/*");
-            String[] mimeTypes = {"font/ttf", "font/otf",
-                                  "application/x-font-ttf",
-                                  "application/x-font-otf"};
-            intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
-            host.startActivityForResult(intent, PICK_FONT_CODE);
-          });
-        } else {
-          settingRow = layoutInfl.inflate(currentCfg.res.layoutCheckbox,
-                                          mainList, false);
-          boolean isCurrentlyEnabled = SettingsStore.get(i.key, i.enabled);
-          XposedHelpers.callMethod(
-              settingRow, currentCfg.settings.methodSetTitleText, i.label);
-          XposedHelpers.callMethod(settingRow,
-                                   currentCfg.settings.methodSetDescription,
-                                   i.description, null, null);
-          if (toggleType != null)
-            XposedHelpers.callMethod(
-                settingRow, currentCfg.settings.methodSetItemType, toggleType);
-          if (statusEnum != null)
-            XposedHelpers.callMethod(settingRow,
-                                     currentCfg.settings.methodSetSyncStatus,
-                                     statusEnum);
-          XposedHelpers.callMethod(settingRow,
-                                   currentCfg.settings.methodSetChecked,
-                                   isCurrentlyEnabled);
-          XposedHelpers.callMethod(
-              settingRow, currentCfg.settings.methodSetDividerVisible, true);
-
-          settingRow.setOnClickListener(v -> {
-            boolean newState = !SettingsStore.get(settingKey, i.enabled);
-            XposedHelpers.callMethod(v, currentCfg.settings.methodSetChecked,
-                                     newState);
-            for (KnotConfig.Item itm : Main.options.items)
-              if (itm.key.equals(settingKey)) {
-                itm.enabled = newState;
-                break;
-              }
-            SettingsStore.save(settingKey, newState);
-            pendingRestart = true;
-          });
+    if (targetCategory == null) {
+      if (showAll) {
+        KnotConfig activeConfig = Main.options;
+        for (KnotConfig.Category cat : DISPLAY_CATEGORIES) {
+          injectSectionHeader(infl, mainList, cat.label);
+          for (KnotConfig.Item i : activeConfig.items) {
+            if (i.category == cat) {
+              injectItemRow(infl, mainList, ctx, i, currentCfg, toggleType,
+                            statusEnum);
+            }
+          }
         }
-        settingRow.setTag((i.label + " " + i.description).toLowerCase());
-        mainList.addView(settingRow);
-      } catch (Throwable ignored) {
+      } else {
+        injectStorageSection(infl, mainList, ctx);
+        injectSectionHeader(infl, mainList, ModuleStrings.SETTINGS_TITLE);
+
+        for (KnotConfig.Category cat : DISPLAY_CATEGORIES) {
+          injectCategoryRow(infl, mainList, ctx, cat, toggleType, statusEnum);
+        }
+
+        injectBackupSection(infl, mainList, ctx);
+        injectOtherSection(infl, mainList, ctx, Main.options);
+      }
+    } else {
+      KnotConfig activeConfig = Main.options;
+      for (KnotConfig.Item i : activeConfig.items) {
+        if (i.category == targetCategory) {
+          injectItemRow(infl, mainList, ctx, i, currentCfg, toggleType,
+                        statusEnum);
+        }
       }
     }
 
-    injectSectionHeader(layoutInfl, mainList, ModuleStrings.CAT_BACKUP);
-    injectBackupRow(layoutInfl, mainList, ctx);
-    mainList.getChildAt(mainList.getChildCount() - 1)
+    scroller.addView(mainList);
+    return scroller;
+  }
+
+  private void injectStorageSection(LayoutInflater infl, LinearLayout parent,
+                                    Context ctx) {
+    injectSectionHeader(infl, parent, ModuleStrings.CAT_STORAGE);
+    injectPathSelectorRow(infl, parent, ctx, ModuleStrings.DESC_PATH_ROW);
+    parent.getChildAt(parent.getChildCount() - 1)
+        .setTag((ModuleStrings.CAT_STORAGE + " " + ModuleStrings.DESC_PATH_ROW)
+                    .toLowerCase());
+  }
+
+  private void injectBackupSection(LayoutInflater infl, LinearLayout parent,
+                                   Context ctx) {
+    injectSectionHeader(infl, parent, ModuleStrings.CAT_BACKUP);
+    injectBackupRow(infl, parent, ctx);
+    parent.getChildAt(parent.getChildCount() - 1)
         .setTag((ModuleStrings.OPT_BACKUP_LABEL + " " +
                  ModuleStrings.OPT_BACKUP_DESC)
                     .toLowerCase());
-    injectRestoreRow(layoutInfl, mainList, ctx);
-    mainList.getChildAt(mainList.getChildCount() - 1)
+    injectRestoreRow(infl, parent, ctx);
+    parent.getChildAt(parent.getChildCount() - 1)
         .setTag((ModuleStrings.OPT_RESTORE_LABEL + " " +
                  ModuleStrings.OPT_RESTORE_DESC)
                     .toLowerCase());
+  }
 
-    injectSectionHeader(layoutInfl, mainList, ModuleStrings.CAT_OTHER);
-    injectAboutRow(layoutInfl, mainList, ctx);
-    mainList.getChildAt(mainList.getChildCount() - 1)
+  private void injectOtherSection(LayoutInflater infl, LinearLayout parent,
+                                  Context ctx, KnotConfig config) {
+    injectSectionHeader(infl, parent, ModuleStrings.CAT_OTHER);
+    injectAboutRow(infl, parent, ctx);
+    parent.getChildAt(parent.getChildCount() - 1)
         .setTag(
             (ModuleStrings.OPT_ABOUT_LABEL + " " + ModuleStrings.OPT_ABOUT_DESC)
                 .toLowerCase());
 
-    injectResetRow(layoutInfl, mainList, ctx, activeConfig,
-                   ModuleStrings.DESC_RESET_ROW);
-    mainList.getChildAt(mainList.getChildCount() - 1)
+    injectResetRow(infl, parent, ctx, config, ModuleStrings.DESC_RESET_ROW);
+    parent.getChildAt(parent.getChildCount() - 1)
         .setTag(
             (ModuleStrings.SETTINGS_RESET + " " + ModuleStrings.DESC_RESET_ROW)
                 .toLowerCase());
-
-    return mainList;
   }
 
-  private static String resolveCategoryLabelText(int index) {
+  private void injectItemRow(LayoutInflater infl, LinearLayout parent,
+                             Context ctx, KnotConfig.Item i,
+                             LineVersion.Config currentCfg, Object toggleType,
+                             Object statusEnum) {
     try {
-      return KnotConfig.Category.values()[index].label;
-    } catch (Throwable t) {
-      return ModuleStrings.CAT_OTHER;
+      final String settingKey = i.key;
+      // Temporarily hide this option until a solution is found for
+      // notification issues when app is frozen by freezer.
+      if (settingKey.equals("fix_notifications"))
+        return;
+
+      View row;
+      if (settingKey.equals("custom_font_path")) {
+        row = infl.inflate(currentCfg.res.typeRow, parent, false);
+        applyVisibility(row, currentCfg.res.idIcon, View.GONE);
+        applyVisibility(row, currentCfg.res.idArrow, View.VISIBLE);
+
+        TextView title = row.findViewById(currentCfg.res.idTitle);
+        title.setText(i.label);
+        TextView desc = row.findViewById(currentCfg.res.idDesc);
+        desc.setText(i.description);
+        desc.setVisibility(View.VISIBLE);
+
+        row.setOnClickListener(v -> {
+          Activity host = resolveActivity(ctx);
+          if (host == null)
+            return;
+          Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+          intent.addCategory(Intent.CATEGORY_OPENABLE);
+          intent.setType("*/*");
+          String[] mimeTypes = {"font/ttf", "font/otf",
+                                "application/x-font-ttf",
+                                "application/x-font-otf"};
+          intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+          host.startActivityForResult(intent, PICK_FONT_CODE);
+        });
+      } else {
+        row = infl.inflate(currentCfg.res.layoutCheckbox, parent, false);
+        boolean isEnabled = SettingsStore.get(i.key, i.enabled);
+
+        XposedHelpers.callMethod(row, currentCfg.settings.methodSetTitleText,
+                                 i.label);
+        XposedHelpers.callMethod(row, currentCfg.settings.methodSetDescription,
+                                 i.description, null, null);
+
+        if (toggleType != null)
+          XposedHelpers.callMethod(row, currentCfg.settings.methodSetItemType,
+                                   toggleType);
+        if (statusEnum != null)
+          XposedHelpers.callMethod(row, currentCfg.settings.methodSetSyncStatus,
+                                   statusEnum);
+
+        XposedHelpers.callMethod(row, currentCfg.settings.methodSetChecked,
+                                 isEnabled);
+        XposedHelpers.callMethod(
+            row, currentCfg.settings.methodSetDividerVisible, true);
+
+        row.setOnClickListener(v -> {
+          boolean newState = !SettingsStore.get(settingKey, i.enabled);
+          XposedHelpers.callMethod(v, currentCfg.settings.methodSetChecked,
+                                   newState);
+          for (KnotConfig.Item itm : Main.options.items) {
+            if (itm.key.equals(settingKey)) {
+              itm.enabled = newState;
+              break;
+            }
+          }
+          SettingsStore.save(settingKey, newState);
+          pendingRestart = true;
+        });
+      }
+      row.setTag((i.label + " " + i.description).toLowerCase());
+      parent.addView(row);
+    } catch (Throwable ignored) {
+    }
+  }
+
+  private void injectCategoryRow(LayoutInflater infl, LinearLayout parent,
+                                 Context ctx, KnotConfig.Category category,
+                                 Object toggleType, Object statusEnum) {
+    try {
+      LineVersion.Config currentCfg = LineVersion.get();
+      View cRow = infl.inflate(currentCfg.res.typeRow, parent, false);
+      applyVisibility(cRow, currentCfg.res.idIcon, View.GONE);
+      applyVisibility(cRow, currentCfg.res.idDesc, View.GONE);
+      applyVisibility(cRow, currentCfg.res.idMark, View.GONE);
+      applyVisibility(cRow, currentCfg.res.idSeparator, View.GONE);
+      applyVisibility(cRow, currentCfg.res.idNewMark, View.GONE);
+      applyVisibility(cRow, currentCfg.res.idNoticeDot, View.GONE);
+      applyVisibility(cRow, currentCfg.res.idArrow, View.VISIBLE);
+
+      TextView titleLabel = cRow.findViewById(currentCfg.res.idTitle);
+      if (titleLabel != null) {
+        titleLabel.setText(category.label);
+      }
+      cRow.setTag(category.label.toLowerCase());
+      cRow.setOnClickListener(
+          v -> switchPage(ctx, toggleType, statusEnum, category));
+      parent.addView(cRow);
+    } catch (Throwable ignored) {
     }
   }
 
@@ -1162,15 +1285,25 @@ public class SettingsUIInjector implements BaseHook {
   private void setupSearchBox(Context ctx, boolean isDark, LinearLayout root,
                               FrameLayout itemHost, Object toggleType,
                               Object statusEnum) {
+    float density = ctx.getResources().getDisplayMetrics().density;
+    RelativeLayout searchContainer = new RelativeLayout(ctx);
+    LinearLayout.LayoutParams containerLp =
+        new LinearLayout.LayoutParams(-1, -2);
+    int margin = (int)(12 * density);
+    containerLp.setMargins(margin, margin / 2, margin, margin / 2);
+    searchContainer.setLayoutParams(containerLp);
+
     EditText searchBox = new EditText(ctx);
     searchBox.setHint(ModuleStrings.SETTINGS_SEARCH_HINT);
     searchBox.setSingleLine(true);
     searchBox.setTextSize(14);
+    searchBox.setImeOptions(
+        android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH);
 
-    float density = ctx.getResources().getDisplayMetrics().density;
     int pHorizontal = (int)(16 * density);
     int pVertical = (int)(8 * density);
-    searchBox.setPadding(pHorizontal, pVertical, pHorizontal, pVertical);
+    int pRight = (int)(40 * density);
+    searchBox.setPadding(pHorizontal, pVertical, pRight, pVertical);
 
     GradientDrawable searchBg = new GradientDrawable();
     searchBg.setColor(isDark ? Color.parseColor("#222222")
@@ -1182,12 +1315,29 @@ public class SettingsUIInjector implements BaseHook {
     searchBox.setHintTextColor(isDark ? Color.parseColor("#888888")
                                       : Color.GRAY);
 
-    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-    int margin = (int)(12 * density);
-    lp.setMargins(margin, margin / 2, margin, margin / 2);
-    searchBox.setLayoutParams(lp);
+    RelativeLayout.LayoutParams boxLp = new RelativeLayout.LayoutParams(-1, -2);
+    searchBox.setLayoutParams(boxLp);
+    searchContainer.addView(searchBox);
 
-    root.addView(searchBox, 0);
+    TextView clearButton = new TextView(ctx);
+    clearButton.setText("✕");
+    clearButton.setGravity(Gravity.CENTER);
+    clearButton.setTextSize(18);
+    clearButton.setTextColor(isDark ? Color.GRAY : Color.LTGRAY);
+    clearButton.setVisibility(View.GONE);
+
+    int btnSize = (int)(32 * density);
+    RelativeLayout.LayoutParams btnLp =
+        new RelativeLayout.LayoutParams(btnSize, btnSize);
+    btnLp.addRule(RelativeLayout.ALIGN_PARENT_RIGHT);
+    btnLp.addRule(RelativeLayout.CENTER_VERTICAL);
+    btnLp.rightMargin = (int)(8 * density);
+    clearButton.setLayoutParams(btnLp);
+    searchContainer.addView(clearButton);
+
+    root.addView(searchContainer, 0);
+
+    clearButton.setOnClickListener(v -> searchBox.setText(""));
 
     searchBox.addTextChangedListener(new TextWatcher() {
       @Override
@@ -1196,7 +1346,34 @@ public class SettingsUIInjector implements BaseHook {
       @Override
       public void onTextChanged(CharSequence s, int start, int before,
                                 int count) {
-        filterSettings(itemHost.getChildAt(0), s.toString().toLowerCase());
+        String query = s.toString().toLowerCase();
+        boolean isSearching = query.length() > 0;
+        clearButton.setVisibility(isSearching ? View.VISIBLE : View.GONE);
+
+        if (isSearching) {
+          if (currentActiveCategory == null) {
+            if (cachedSearchView == null) {
+              cachedSearchView =
+                  renderSettingsItems(ctx, toggleType, statusEnum, null, true);
+            }
+            if (cachedItemHost.getChildAt(0) != cachedSearchView) {
+              cachedItemHost.removeAllViews();
+              cachedItemHost.addView(cachedSearchView);
+            }
+            filterSettings(cachedSearchView, query);
+          } else {
+            filterSettings(cachedItemHost.getChildAt(0), query);
+          }
+        } else {
+          if (cachedItemHost.getChildAt(0) == cachedSearchView) {
+            View normalView = renderSettingsItems(ctx, toggleType, statusEnum,
+                                                  currentActiveCategory, false);
+            cachedItemHost.removeAllViews();
+            cachedItemHost.addView(normalView);
+          } else {
+            filterSettings(cachedItemHost.getChildAt(0), "");
+          }
+        }
       }
       @Override
       public void afterTextChanged(Editable s) {}
@@ -1207,9 +1384,12 @@ public class SettingsUIInjector implements BaseHook {
       if (a != null)
         a.runOnUiThread(() -> {
           itemHost.removeAllViews();
-          View newList = renderSettingsItems(ctx, toggleType, statusEnum);
+          String query = searchBox.getText().toString().toLowerCase();
+          boolean isSearching = query.length() > 0;
+          View newList = renderSettingsItems(
+              ctx, toggleType, statusEnum, currentActiveCategory, isSearching);
           itemHost.addView(newList);
-          filterSettings(newList, searchBox.getText().toString().toLowerCase());
+          filterSettings(newList, query);
         });
     };
   }
