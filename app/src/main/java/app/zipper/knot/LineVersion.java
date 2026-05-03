@@ -182,6 +182,8 @@ public class LineVersion {
       public String resVoom = "";
       public String resNews = "";
       public String resMini = "";
+      public String resShopping = "";
+      public String resShoppingTw = "";
       public String resContainer = "";
       public String resBtnText = "";
       public String resBtnImg = "";

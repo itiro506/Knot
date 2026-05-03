@@ -137,6 +137,10 @@ public class ModuleStrings {
   public static final String OPT_REMOVE_TAB_MINI_LABEL = "MINIタブを非表示";
   public static final String OPT_REMOVE_TAB_MINI_DESC =
       "下部のMINIタブを隠します。";
+  public static final String OPT_REMOVE_TAB_SHOPPING_LABEL =
+      "ショッピングタブを非表示";
+  public static final String OPT_REMOVE_TAB_SHOPPING_DESC =
+      "下部のショッピングタブを隠します。";
   public static final String OPT_EXTEND_TAB_CLICK_AREA_LABEL =
       "タブのタップ範囲を拡張";
   public static final String OPT_EXTEND_TAB_CLICK_AREA_DESC =

@@ -53,6 +53,12 @@ public class KnotConfig {
       new Item("remove_tab_mini", ModuleStrings.OPT_REMOVE_TAB_MINI_LABEL,
                ModuleStrings.OPT_REMOVE_TAB_MINI_DESC, false, Category.DISPLAY);
 
+  public Item removeTabShopping =
+      new Item("remove_tab_shopping",
+               ModuleStrings.OPT_REMOVE_TAB_SHOPPING_LABEL,
+               ModuleStrings.OPT_REMOVE_TAB_SHOPPING_DESC, false,
+               Category.DISPLAY);
+
   public Item extendTabClickArea = new Item(
       "extend_tab_click_area", ModuleStrings.OPT_EXTEND_TAB_CLICK_AREA_LABEL,
       ModuleStrings.OPT_EXTEND_TAB_CLICK_AREA_DESC, false, Category.DISPLAY);
@@ -155,6 +161,7 @@ public class KnotConfig {
                          removeTabVoom,
                          removeTabNews,
                          removeTabMini,
+                         removeTabShopping,
                          extendTabClickArea,
                          hideTabText,
                          removeHomeRecommendations,

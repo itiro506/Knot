@@ -145,6 +145,8 @@ public class Version265 {
     v.tabs.resVoom = "bnb_timeline";
     v.tabs.resNews = "bnb_news";
     v.tabs.resMini = "bnb_mini";
+    v.tabs.resShopping = "bnb_commerce";
+    v.tabs.resShoppingTw = "bnb_commerce_tw";
     v.tabs.resContainer = "main_tab_container";
     v.tabs.resBtnText = "bnb_button_text";
     v.tabs.resBtnImg = "bnb_button_image";

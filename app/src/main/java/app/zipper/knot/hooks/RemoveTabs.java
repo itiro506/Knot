@@ -36,6 +36,11 @@ public class RemoveTabs implements BaseHook {
             if (SettingsStore.get(config.removeTabMini.key,
                                   config.removeTabMini.enabled))
               deactivateTab(host, c.tabs.resMini);
+            if (SettingsStore.get(config.removeTabShopping.key,
+                                  config.removeTabShopping.enabled)) {
+              deactivateTab(host, c.tabs.resShopping);
+              deactivateTab(host, c.tabs.resShoppingTw);
+            }
             if (SettingsStore.get(config.extendTabClickArea.key,
                                   config.extendTabClickArea.enabled))
               expandInteractionArea(host);
