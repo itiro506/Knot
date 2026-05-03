@@ -31,6 +31,9 @@ public class ReadReceiptHandler implements BaseHook {
                                   lpparam.classLoader),
           cfg.unsend.methodReadBuffer, new XC_MethodHook() {
             @Override
+            protected void beforeHookedMethod(MethodHookParam param) {}
+
+            @Override
             protected void afterHookedMethod(MethodHookParam param) {
               try {
                 if (!SettingsStore.get("record_read_history", false))
@@ -364,9 +367,27 @@ public class ReadReceiptHandler implements BaseHook {
             Class<?>[] params =
                 ((java.lang.reflect.Method)param.method).getParameterTypes();
             if (params.length == 1 && params[0] == String.class) {
-              if (SettingsStore.get("send_mark_state", false) &&
-                  bypassExpiry > System.currentTimeMillis())
-                return;
+              try {
+                if (SettingsStore.get("send_mark_state", false) &&
+                    bypassExpiry > System.currentTimeMillis())
+                  return;
+
+                StackTraceElement[] stack =
+                    Thread.currentThread().getStackTrace();
+                boolean isLocalRead = false;
+                for (StackTraceElement element : stack) {
+                  String className = element.getClassName();
+                  if (className.contains("ChatHistoryActivity") ||
+                      className.contains("MessageList") ||
+                      className.contains("ChatList")) {
+                    isLocalRead = true;
+                    break;
+                  }
+                }
+                if (!isLocalRead)
+                  return;
+              } catch (Throwable ignored) {
+              }
               param.setResult(null);
             }
           }
