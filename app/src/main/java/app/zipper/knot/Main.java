@@ -79,8 +79,6 @@ public class Main
                           new FontUnlockHook(),
                           new BackupRestoreHook(),
                           new FixNotificationHook(),
-                          new ThemeFreeHook(),
-                          new StickerTrialHook(),
                           new HideAiIconPermanently()};
 
       for (BaseHook h : hooks) {

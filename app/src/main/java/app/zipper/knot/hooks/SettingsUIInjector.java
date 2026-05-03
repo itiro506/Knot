@@ -87,8 +87,7 @@ public class SettingsUIInjector implements BaseHook {
 
   private static final KnotConfig.Category[] DISPLAY_CATEGORIES = {
       KnotConfig.Category.CHAT, KnotConfig.Category.DISPLAY,
-      KnotConfig.Category.NOTIFICATION, KnotConfig.Category.STICKER_THEME,
-      KnotConfig.Category.EXPERIMENTAL};
+      KnotConfig.Category.NOTIFICATION, KnotConfig.Category.EXPERIMENTAL};
 
   @Override
   public void hook(KnotConfig config, XC_LoadPackage.LoadPackageParam lpparam)

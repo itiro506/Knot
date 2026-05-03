@@ -11,7 +11,6 @@ public class KnotConfig {
     NOTIFICATION(ModuleStrings.CAT_NOTIFICATION),
     SYSTEM(ModuleStrings.CAT_SYSTEM),
     BACKUP(ModuleStrings.CAT_BACKUP),
-    STICKER_THEME(ModuleStrings.CAT_STICKER_THEME),
     OTHER(ModuleStrings.CAT_OTHER);
 
     public final String label;
@@ -118,14 +117,6 @@ public class KnotConfig {
       ModuleStrings.OPT_REACTION_NOTIFICATION_DESC, false,
       Category.NOTIFICATION);
 
-  public Item themeFree = new Item(
-      "theme_free", ModuleStrings.OPT_THEME_FREE_LABEL,
-      ModuleStrings.OPT_THEME_FREE_DESC, false, Category.STICKER_THEME);
-
-  public Item stickerTrial = new Item(
-      "sticker_trial", ModuleStrings.OPT_STICKER_TRIAL_LABEL,
-      ModuleStrings.OPT_STICKER_TRIAL_DESC, false, Category.STICKER_THEME);
-
   public Item removeAiFriendsButton = new Item(
       "remove_ai_friends_button",
       ModuleStrings.OPT_REMOVE_AI_FRIENDS_BUTTON_LABEL,
@@ -170,8 +161,6 @@ public class KnotConfig {
                          removeNotificationMuteButton,
                          fixNotifications,
                          reactionNotification,
-                         themeFree,
-                         stickerTrial,
                          spoofVersion,
                          safeSettingsResources};
 }

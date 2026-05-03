@@ -16,7 +16,7 @@ public class ModuleStrings {
   public static final String SETTINGS_SEARCH_HINT = "設定を検索...";
 
   public static final String CAT_CHAT = "チャット";
-  public static final String CAT_STICKER_THEME = "スタンプ・着せかえ";
+
   public static final String CAT_DISPLAY = "画面表示";
   public static final String CAT_NOTIFICATION = "通知";
   public static final String CAT_STORAGE = "保存先";
@@ -108,14 +108,6 @@ public class ModuleStrings {
       "チャット画面のテキストボックス内にあるAIアイコンを常に非表示に"
       + "します。通常は30日間のみ非表示にできますが、このオプションを有効にする"
       + "と設定に関わらず永続的に非表示になります。";
-
-  public static final String OPT_THEME_FREE_LABEL = "着せかえ無料化";
-  public static final String OPT_THEME_FREE_DESC =
-      "ショップの着せかえをすべて所有済みにし、無料でダウンロード・適用できる"
-      + "ようにします。";
-  public static final String OPT_STICKER_TRIAL_LABEL = "スタンプお試し無制限";
-  public static final String OPT_STICKER_TRIAL_DESC =
-      "スタンプのお試し利用回数を無制限にします。";
 
   public static final String OPT_REMOVE_ADS_LABEL = "広告を非表示";
   public static final String OPT_REMOVE_ADS_DESC =
