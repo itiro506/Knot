@@ -24,42 +24,64 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@v3.2.2
         with:
+          packages: >-
+            tools
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
           log-accepted-android-sdk-licenses: 'false'
 
-      - name: Install Android SDK packages
-        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-
-      - name: Verify Gradle wrapper
+      - name: Validate Gradle wrapper
         run: |
-          ls -la gradle/wrapper
+          chmod +x ./gradlew
           test -f gradle/wrapper/gradle-wrapper.jar
+          ./gradlew --version
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace --no-daemon
+        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
 
-      - name: Resolve APK name
-        id: apk
+      - name: Prepare APK artifact
+        id: apk-artifact
         shell: bash
         run: |
-          apk_path="$(find app/build/outputs/apk/debug -name '*.apk' -print -quit)"
+          set -euo pipefail
 
-          if [[ -z "$apk_path" ]]; then
-            echo "No APK was generated." >&2
+          timestamp="$(TZ=Asia/Tokyo date +'%Y%m%d-%H%M%S')"
+          app_name="$(sed -n 's/.*<string name="app_name">\([^<]*\)<\/string>.*/\1/p' app/src/main/res/values/strings.xml | head -n 1)"
+          version_name="$(sed -n 's/^[[:space:]]*versionName[[:space:]]*["'\'']\([^"'\'']*\)["'\''].*/\1/p' app/build.gradle | head -n 1)"
+
+          if [[ -z "${app_name}" ]]; then
+            echo "Failed to read app_name from app/src/main/res/values/strings.xml" >&2
             exit 1
           fi
 
-          apk_name="$(basename "$apk_path" .apk)"
-          echo "path=$apk_path" >> "$GITHUB_OUTPUT"
-          echo "name=$apk_name" >> "$GITHUB_OUTPUT"
+          if [[ -z "${version_name}" ]]; then
+            echo "Failed to read versionName from app/build.gradle" >&2
+            exit 1
+          fi
+
+          shopt -s nullglob
+          apks=(app/build/outputs/apk/debug/*.apk)
+          if (( ${#apks[@]} != 1 )); then
+            echo "Expected exactly one debug APK, found ${#apks[@]}" >&2
+            exit 1
+          fi
+
+          artifact_name="${timestamp}-${app_name}-${version_name}"
+          artifact_dir="app/build/outputs/apk/artifacts"
+          artifact_path="${artifact_dir}/${artifact_name}.apk"
+
+          mkdir -p "${artifact_dir}"
+          cp "${apks[0]}" "${artifact_path}"
+
+          echo "artifact_name=${artifact_name}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_path=${artifact_path}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.apk.outputs.name }}
-          path: ${{ steps.apk.outputs.path }}
+          name: ${{ steps.apk-artifact.outputs.artifact_name }}
+          path: ${{ steps.apk-artifact.outputs.artifact_path }}
           if-no-files-found: error
