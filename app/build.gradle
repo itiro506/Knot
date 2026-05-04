@@ -2,26 +2,6 @@ plugins {
     id 'com.android.application'
 }
 
-def appDisplayNameProvider = providers.provider {
-    def stringsFile = file('src/main/res/values/strings.xml')
-    if (!stringsFile.isFile()) {
-        return project.name
-    }
-
-    def resources = new groovy.xml.XmlSlurper(false, false).parse(stringsFile)
-    def appName = resources.string.find { it.@name.text() == 'app_name' }?.text()
-    return appName ?: project.name
-}
-
-def apkNamePart = { value ->
-    def sanitized = value.toString().trim()
-    sanitized = sanitized.replaceAll('[\\\\/:*?"<>|]+', '-')
-    sanitized = sanitized.replaceAll('\\s+', '-')
-    sanitized = sanitized.replaceAll('-+', '-')
-    sanitized = sanitized.replaceAll('^-+|-+$', '')
-    return sanitized ?: 'app'
-}
-
 android {
     namespace 'app.zipper.knot'
     compileSdk 35
@@ -68,15 +48,6 @@ android {
     sourceSets {
         main {
             java.srcDirs = ['src/main/java']
-        }
-    }
-
-    applicationVariants.configureEach { variant ->
-        variant.outputs.configureEach { output ->
-            def appName = apkNamePart(appDisplayNameProvider.get())
-            def versionName = apkNamePart(variant.versionName ?: '0.0.0')
-            def variantName = apkNamePart(variant.name)
-            outputFileName = "${appName}-${versionName}-${variantName}.apk"
         }
     }
 }
