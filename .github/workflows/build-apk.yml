@@ -12,8 +12,6 @@ jobs:
   build-apk:
     name: Build debug APK
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
@@ -26,14 +24,57 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3.2.2
-        with:
-          packages: >-
-            tools
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
-          log-accepted-android-sdk-licenses: 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          sdkmanager_path="$(command -v sdkmanager || true)"
+
+          if [[ -z "${sdkmanager_path}" ]]; then
+            shopt -s nullglob
+            sdkmanagers=(
+              "${sdk_root}"/cmdline-tools/latest/bin/sdkmanager
+              "${sdk_root}"/cmdline-tools/*/bin/sdkmanager
+              "${sdk_root}"/tools/bin/sdkmanager
+            )
+            shopt -u nullglob
+
+            for candidate in "${sdkmanagers[@]}"; do
+              if [[ -x "${candidate}" ]]; then
+                sdkmanager_path="${candidate}"
+                break
+              fi
+            done
+          fi
+
+          if [[ -z "${sdkmanager_path}" || ! -x "${sdkmanager_path}" ]]; then
+            echo "sdkmanager not found under ${sdk_root}" >&2
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=${sdk_root}" >> "${GITHUB_ENV}"
+          echo "ANDROID_SDK_ROOT=${sdk_root}" >> "${GITHUB_ENV}"
+          echo "${sdk_root}/platform-tools" >> "${GITHUB_PATH}"
+
+          run_sdkmanager_with_yes() {
+            local status
+
+            set +e
+            set +o pipefail
+            yes | "${sdkmanager_path}" "$@"
+            status="${PIPESTATUS[1]}"
+            set -e
+            set -o pipefail
+
+            return "${status}"
+          }
+
+          run_sdkmanager_with_yes --licenses >/dev/null
+          run_sdkmanager_with_yes --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Validate Gradle wrapper
         run: |
